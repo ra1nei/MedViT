@@ -348,17 +348,21 @@ def main(args):
         )
 
         lr_scheduler.step(epoch)
-        if args.output_dir:
-            checkpoint_paths = [output_dir / 'checkpoint.pth']
+        if args.output_dir and (epoch % 5 == 0 or epoch + 1 == args.epochs):
+            checkpoint_paths = [output_dir / f'checkpoint_{epoch:03}.pth']
+            # Nếu bạn vẫn muốn lưu cả checkpoint cuối cùng dưới tên 'checkpoint.pth', thêm dòng này:
+            if epoch + 1 == args.epochs:
+                checkpoint_paths.append(output_dir / 'checkpoint.pth')
             for checkpoint_path in checkpoint_paths:
                 utils.save_on_master({
                     'model': model_without_ddp.state_dict(),
                     'optimizer': optimizer.state_dict(),
                     'lr_scheduler': lr_scheduler.state_dict(),
                     'epoch': epoch,
-                    'scaler': loss_scaler.state_dict(),
                     'args': args,
+                    'model_ema': get_state_dict(model_ema),
                 }, checkpoint_path)
+
 
         test_stats = evaluate(data_loader_val, model, device)
         print(f"Accuracy of the network on the {len(dataset_val)} test images: {test_stats['acc1']:.1f}%")
