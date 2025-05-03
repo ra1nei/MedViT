@@ -360,7 +360,7 @@ def main(args):
                     'lr_scheduler': lr_scheduler.state_dict(),
                     'epoch': epoch,
                     'args': args,
-                    'model_ema': get_state_dict(model_ema),
+                    # 'model_ema': get_state_dict(model_ema),
                 }, checkpoint_path)
 
 
