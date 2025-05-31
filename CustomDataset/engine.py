@@ -70,27 +70,43 @@ def evaluate(data_loader, model, device):
     metric_logger = utils.MetricLogger(delimiter="  ")
     header = 'Test:'
 
+    all_true_labels = []
+    all_predicted_labels = []
+
     # switch to evaluation mode
     model.eval()
 
-    for images, target in metric_logger.log_every(data_loader, 10, header):
-        images = images.to(device, non_blocking=True)
-        target = target.to(device, non_blocking=True)
+    for samples, targets in metric_logger.log_every(data_loader, 10, header):
+        samples = samples.to(device, non_blocking=True)
+        targets = targets.to(device, non_blocking=True)
 
         # compute output
         with torch.cuda.amp.autocast():
-            output = model(images)
-            loss = criterion(output, target)
+            outputs = model(samples)
+            loss = criterion(outputs, targets)
 
-        acc1, acc5 = accuracy(output, target, topk=(1, 5))
+        # Lấy nhãn dự đoán (lớp có xác suất cao nhất)
+        _, predicted = outputs.max(1)
 
-        batch_size = images.shape[0]
+        # Lưu trữ nhãn thực tế và nhãn dự đoán
+        all_true_labels.extend(targets.cpu().numpy())
+        all_predicted_labels.extend(predicted.cpu().numpy())
+
+        batch_size = samples.shape[0]
         metric_logger.update(loss=loss.item())
+        acc1, acc5 = accuracy(outputs, targets, topk=(1, 5)) # Sử dụng accuracy từ timm.utils
         metric_logger.meters['acc1'].update(acc1.item(), n=batch_size)
         metric_logger.meters['acc5'].update(acc5.item(), n=batch_size)
     # gather the stats from all processes
     metric_logger.synchronize_between_processes()
-    print('* Acc@1 {top1.global_avg:.3f} Acc@5 {top5.global_avg:.3f} loss {losses.global_avg:.3f}'
-          .format(top1=metric_logger.acc1, top5=metric_logger.acc5, losses=metric_logger.loss))
+    print('* Acc@1 {meters.acc1.global_avg:.3f} Acc@5 {meters.acc5.global_avg:.3f} loss {meters.loss.global_avg:.3f}'
+          .format(meters=metric_logger))
 
-    return {k: meter.global_avg for k, meter in metric_logger.meters.items()}
+    # Tính toán Overall Accuracy
+    correct_predictions = (torch.tensor(all_true_labels) == torch.tensor(all_predicted_labels)).sum().item()
+    total_predictions = len(all_true_labels)
+    overall_accuracy = correct_predictions / total_predictions
+
+    print(f"Overall Accuracy: {overall_accuracy:.4f}")
+
+    return {k: meter.global_avg for k, meter in metric_logger.meters.items()}, overall_accuracy
