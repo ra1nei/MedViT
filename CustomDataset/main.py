@@ -323,8 +323,9 @@ def main(args):
         if hasattr(model.module, "merge_bn"):
             print("Merge pre bn to speedup inference.")
             model.module.merge_bn()
-        test_stats, overall_accuracy = evaluate(data_loader_val, model, device)
-        print(f"Overall Accuracy of the network on the {len(dataset_val)} test images: {overall_accuracy:.1%}") # In ra Overall Accuracy
+        test_stats_dict, overall_accuracy = evaluate(data_loader_val, model, device)
+        print(f"Accuracy of the network on the {len(dataset_val)} test images: {test_stats_dict['acc1']:.1f}%")
+        print(f"Overall Accuracy of the network on the {len(dataset_val)} test images: {overall_accuracy:.1%}")
         return
 
     if args.throughout:
@@ -364,9 +365,10 @@ def main(args):
                 }, checkpoint_path)
 
 
-        test_stats = evaluate(data_loader_val, model, device)
-        print(f"Accuracy of the network on the {len(dataset_val)} test images: {test_stats['acc1']:.1f}%")
-        if test_stats["acc1"] > max_accuracy:
+        test_stats_dict, overall_accuracy = evaluate(data_loader_val, model, device)
+        print(f"Accuracy of the network on the {len(dataset_val)} test images: {test_stats_dict['acc1']:.1f}%")
+        print(f"Overall Accuracy of the network on the {len(dataset_val)} test images: {overall_accuracy:.1%}")
+        if test_stats_dict["acc1"] > max_accuracy:
             if args.output_dir:
                 checkpoint_paths = [output_dir / 'checkpoint_best.pth']
                 for checkpoint_path in checkpoint_paths:
@@ -377,12 +379,14 @@ def main(args):
                         'epoch': epoch,
                         'args': args,
                     }, checkpoint_path)
-        max_accuracy = max(max_accuracy, test_stats["acc1"])
+        max_accuracy = max(max_accuracy, test_stats_dict["acc1"])
         print(f'Max accuracy: {max_accuracy:.2f}%')
 
         log_stats = {**{f'train_{k}': v for k, v in train_stats.items()},
-                     **{f'test_{k}': v for k, v in test_stats.items()},
-                     'epoch': epoch}
+                **{f'test_{k}': v for k, v in test_stats_dict.items()}, # Thay test_stats thành test_stats_dict
+                'overall_accuracy': overall_accuracy, # Thêm overall accuracy vào log
+                'epoch': epoch}
+
 
         if args.output_dir and utils.is_main_process():
             with (output_dir / "log.txt").open("a") as f:
