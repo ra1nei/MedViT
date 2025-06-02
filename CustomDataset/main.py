@@ -23,7 +23,7 @@ import MedViT
 def get_args_parser():
     parser = argparse.ArgumentParser('MedViT training and evaluation script', add_help=False)
     parser.add_argument('--batch-size', default=64, type=int)
-    parser.add_argument('--epochs', default=30, type=int)
+    parser.add_argument('--epochs', default=300, type=int)
 
     # Model parameters
     parser.add_argument('--model', default='MedViT_small', type=str, metavar='MODEL',
